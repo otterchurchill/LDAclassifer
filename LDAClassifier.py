@@ -10,6 +10,23 @@ from scipy import stats
 from sklearn.utils import shuffle
 
 #********************************************************************************
+class PDWrapper:
+    betaData = None
+    typeOf = None
+    columnHead = None
+    pair = -1
+
+
+
+    '''
+    def __init__(self, betaPD, typeOf, columnHeadPD = None):
+    
+    self.betaData = betaPD
+    self.Type = TypeOf
+    self.columnHead = columnHeadPD
+    '''
+
+#********************************************************************************
 def isSortedFiles(listOneUIDs, listTwoUIDs, name):
     if listOneUIDs[1:].equals(listTwoUIDs[1:]):
         print(name, "is ordered identically")
@@ -26,6 +43,13 @@ def isSortedFiles(listOneUIDs, listTwoUIDs, name):
         print("please sort both, ending script now")
         sys.exit()
 
+
+#********************************************************************************
+def checkHeaders(listOfBetas):
+    exemplar = listOfBetas[0].columnHead
+    for x,pd in enumerate(listOfBetas):
+        isSortedFiles(pd.columnHead, exemplar,"SampleHeader" + str(x))
+        
 #********************************************************************************
 def makePD(name, needColumns=False):
     infile = open(name, 'r')
@@ -151,48 +175,50 @@ def scalings(lda, X, varibles, out=False):
 
 def main():
     
-    typeAfileName = sys.argv[1]
-    typeACellFile = sys.argv[2]
-    typeBfileName = sys.argv[3]
-    typeBCellFile = sys.argv[4]
-    percent = sys.argv[5]
+    fileListFile = sys.argv[1]
+    percent = sys.argv[2]
     
     percent = float(percent)
-
-    typeAData, AColumnHead = makePD(typeAfileName, True)
-    typeBData,BColumnHead = makePD(typeBfileName, True)
-    
-    typeACellData = makePD(typeACellFile)
-    typeBCellData = makePD(typeBCellFile)
-    
     print("Split Ratio is", percent)
     
-    print(typeAData)
+    inPDList = []
 
-    print("CellA\n", typeACellData)
-    print("CellB\n", typeBCellData)
+    with open (fileListFile, 'r') as inFiles:
+        #expecting "BetaFile\tCellTypeManifest"
+        for x,sampleLine in enumerate(inFiles):
+            
+            sampleLine = sampleLine.split()
+            
+            newInput = PDWrapper()
+            newInputManifest = PDWrapper()
+            
+            newInput.betaData, newInput.columnHead = makePD(sampleLine[0], True)
+            
+            newInput.typeOf = makePD(sampleLine[1])
+            print("BetaValues Sample" +str(x) + "\n", newInput.betaData)
+            
+            print("CellType Sample" +str(x) + "\n", newInput.typeOf)
+            newInput.pair = x
+            
+            inPDList.append(newInput)
+            #check that the patients are in the same order
+            xUID = newInput.betaData.iloc[:, 0]
+            yUID = newInput.typeOf.iloc[:, 0]
 
-    xtypeAUID = typeAData.iloc[:, 0]
-    yTypeACellUID = typeACellData.iloc[:, 0]
+            isSortedFiles(xUID, yUID, "Sample"+ str(x))
+            #reduce DTs to relevant information
+            newInput.betaData = newInput.betaData.iloc[:, 1:]
+            newInput.typeOf = newInput.typeOf.iloc[:, 1:]
+        
     
-    isSortedFiles(xtypeAUID, yTypeACellUID, "TypeA")
-    xtypeBUID = typeBData.iloc[:, 0]
-    yTypeBCellUID = typeBCellData.iloc[:, 0]
     
-    isSortedFiles(xtypeBUID, yTypeBCellUID, "TypeB")
-    isSortedFiles(AColumnHead, BColumnHead, "columnHead")
-
-    xtypeA = typeAData.iloc[:, 1:]
-    ytypeA = typeACellData.iloc[:, 1]
-
-    xtypeB = typeBData.iloc[:, 1:]
-    ytypeB = typeBCellData.iloc[:, 1]
-    
-    train, test, trainClassifs, testClassifs, =split(percent, xtypeA, xtypeB, ytypeA, ytypeB)
+    checkHeaders(inPDList)
+    '''
+    train, test, trainClassifs, testClassifs, = split(percent, xtypeA, xtypeB, ytypeA, ytypeB)
     prediction = predict(train, test, trainClassifs, AColumnHead)
     getAccuracy(testClassifs, prediction)
 
-
+    '''
 if __name__ == "__main__":
     main()
 
