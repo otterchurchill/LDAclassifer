@@ -71,30 +71,36 @@ def isPD(objectToCheck, name):
         print("False",name, "is a", type(objectToCheck))
     
 #********************************************************************************
-def split(precentNeeded,typeA,typeB,typeACell, typeBCell):
-    typeATrainNum, typeATestNum = getTrainTest(precentNeeded, len(typeA.index))
-    typeBTrainNum, typeBTestNum = getTrainTest(precentNeeded, len(typeB.index))
+def split(precentNeeded,sampleList):
+    test = pd.DataFrame()
+    train = pd.DataFrame()
+    classifTest = pd.DataFrame()
+    classifTrain = pd.DataFrame()
+   
+    for x,sample in enumerate(sampleList):
+        trainNum, testNum = getTrainTest(precentNeeded, len(sample.betaData.index))
+
+        print("trainSample"+ str(x), trainNum, "testSample"+ str(x), testNum)  
     
-    print("trainA:", typeATrainNum, "testA:", typeATestNum)  
-    print("trainB:", typeBTrainNum, "testB:", typeBTestNum)  
-
-    typeATrain = typeA.loc[ : typeATrainNum - 1, :]
-    typeBTrain = typeB.loc[ : typeBTrainNum - 1, : ]
-    print("typeATrain: ", typeATrain) 
-    typeATest = typeA.loc[typeATrainNum :, : ]
-    typeBTest = typeB.loc[typeBTrainNum :, : ]
-    print("typeATest: ", typeATest)
-
-    train = typeATrain.append(typeBTrain)
-    test = typeATest.append(typeBTest)
     
-    cellTrain = typeACell.loc[ : typeATrainNum - 1]
-    cellTrain = cellTrain.append(typeBCell.loc[ : typeBTrainNum - 1])
+        sampleTrain = sample.betaData.loc[ : trainNum - 1, :]
+        sampleTest = sample.betaData.loc[trainNum :, : ]
 
-    cellTest = typeACell.loc[ typeATrainNum : ]
-    cellTest = cellTest.append(typeBCell.loc[ typeBTrainNum :]) 
-    print("cellTest:\n", cellTrain)
-    return train, test, cellTrain, cellTest
+        test = test.append(sampleTest)
+        train = train.append(sampleTrain)
+
+        cellTrain = sample.typeOf.loc[ : trainNum - 1]
+        cellTest = sample.typeOf.loc[ trainNum : ]
+    
+    
+        classifTrain = classifTrain.append(cellTrain)
+        classifTest = classifTest.append(cellTest)
+    
+        print("cellTest:\n", cellTrain)
+    
+    
+
+    return train, test, classifTrain, classifTest
 
 #********************************************************************************
 def getTrainTest(precentNeeded, lenght):
@@ -139,9 +145,8 @@ def randomize(train, test, trainClassifs, testClassifs, state):
 #********************************************************************************
 def getAccuracy(testClassifs, prediction):
     print (prediction,'\n', sep='')
-    print(testClassifs.tolist(),'\n', sep='')
+    print(testClassifs,'\n', sep='')
     
-    testClassifs = testClassifs.tolist()
     
     correctPredictionsSummed = 0
 
@@ -213,12 +218,16 @@ def main():
     
     
     checkHeaders(inPDList)
-    '''
-    train, test, trainClassifs, testClassifs, = split(percent, xtypeA, xtypeB, ytypeA, ytypeB)
-    prediction = predict(train, test, trainClassifs, AColumnHead)
-    getAccuracy(testClassifs, prediction)
+    train, test, trainClassifs, testClassifs = split(percent, inPDList)
+    #return train, test, classifTrain, classifTest
+    print("test\n", test)
+    print("train\n", train)
+    print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
+    print("classifTrain\n", trainClassifs)
+    prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
+    getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction)
 
-    '''
+
 if __name__ == "__main__":
     main()
 
