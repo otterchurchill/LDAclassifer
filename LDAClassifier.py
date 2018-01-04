@@ -17,15 +17,6 @@ class PDWrapper:
     pair = -1
 
 
-
-    '''
-    def __init__(self, betaPD, typeOf, columnHeadPD = None):
-    
-    self.betaData = betaPD
-    self.Type = TypeOf
-    self.columnHead = columnHeadPD
-    '''
-
 #********************************************************************************
 def isSortedFiles(listOneUIDs, listTwoUIDs, name):
     if listOneUIDs[1:].equals(listTwoUIDs[1:]):
@@ -71,32 +62,44 @@ def isPD(objectToCheck, name):
         print("False",name, "is a", type(objectToCheck))
     
 #********************************************************************************
-def split(precentNeeded,sampleList):
+def split(precentNeeded,sampleList,lenght, lastTwoSplit=False):
     test = pd.DataFrame()
     train = pd.DataFrame()
     classifTest = pd.DataFrame()
     classifTrain = pd.DataFrame()
    
     for x,sample in enumerate(sampleList):
-        trainNum, testNum = getTrainTest(precentNeeded, len(sample.betaData.index))
+        if x < (lenght-2):
+            train = train.append(sample.betaData)
+            classifTrain = classifTrain.append(sample.typeOf)
+            print("classifTrain\n", classifTrain)
 
-        print("trainSample"+ str(x), trainNum, "testSample"+ str(x), testNum)  
-    
-    
-        sampleTrain = sample.betaData.loc[ : trainNum - 1, :]
-        sampleTest = sample.betaData.loc[trainNum :, : ]
+        elif (x >= lenght):
+            break
+        elif ((x >= (lenght-2)) and not lastTwoSplit):
+            test = test.append(sample.betaData)
+            classifTest = classifTest.append(sample.typeOf)
+        elif ((x >= (lenght-2)) and lastTwoSplit) :
 
-        test = test.append(sampleTest)
-        train = train.append(sampleTrain)
+            trainNum, testNum = getTrainTest(precentNeeded, len(sample.betaData.index))
 
-        cellTrain = sample.typeOf.loc[ : trainNum - 1]
-        cellTest = sample.typeOf.loc[ trainNum : ]
+            print("trainSample"+ str(x), trainNum, "testSample"+ str(x), testNum)  
+             
+    
+            sampleTrain = sample.betaData.loc[ : trainNum - 1, :]
+            sampleTest = sample.betaData.loc[trainNum :, : ]
+
+            test = test.append(sampleTest)
+            train = train.append(sampleTrain)
+
+            cellTrain = sample.typeOf.loc[ : trainNum - 1]
+            cellTest = sample.typeOf.loc[ trainNum : ]
     
     
-        classifTrain = classifTrain.append(cellTrain)
-        classifTest = classifTest.append(cellTest)
+            classifTrain = classifTrain.append(cellTrain)
+            classifTest = classifTest.append(cellTest)
     
-        print("cellTest:\n", cellTrain)
+            print("cellTest:\n", cellTest)
     
     
 
@@ -125,7 +128,7 @@ def predict(train, test , trainClassifs, varibles):
     
     YTest = lda.transform(test) 
     YClasifs = lda.predict(test) 
-    YClasifsProbability = lda.predict_proba(test) 
+    YClasifsProbability = pd.DataFrame(lda.predict_proba(test), columns=lda.classes_)
     
     print("lda.trans(test):\n", YTest)
     print("lda.predict(test):\n", YClasifs)
@@ -167,12 +170,9 @@ def scalings(lda, X, varibles, out=False):
         pd.set_option('display.max_rows', len(ret))
         pd.options.display.float_format = '{:,.12f}'.format
         print("Coefficients of linear discriminants:")
-        #concat = pd.concat([varibles, ret], axis=1)
-        #print("concat", concat)
-        #print("ret\n",ret, sep='')
         retSorted = ret.reindex(ret.LD1.abs().sort_values(ascending=False).index)
         
-        print("SortedLDAVars\n", retSorted, sep='')
+        #print("SortedLDAVars\n", retSorted, sep='')
 
     return ret
 
@@ -218,7 +218,12 @@ def main():
     
     
     checkHeaders(inPDList)
-    train, test, trainClassifs, testClassifs = split(percent, inPDList)
+    
+    #****************1stTest**************
+
+    print("First Test")
+    train, test, trainClassifs, testClassifs = split(percent, inPDList, 4)
+
     #return train, test, classifTrain, classifTest
     print("test\n", test)
     print("train\n", train)
@@ -228,6 +233,44 @@ def main():
     getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction)
 
 
+    #****************2stTest**************
+
+    print("Second Test")
+    train, test, trainClassifs, testClassifs = split(percent, inPDList, 4, True)
+
+    #return train, test, classifTrain, classifTest
+    print("test\n", test)
+    print("train\n", train)
+    print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
+    print("classifTrain\n", trainClassifs)
+    prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
+    getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction)
+    #****************3rdTest**************
+
+    print("Third Test")
+    train, test, trainClassifs, testClassifs = split(percent, inPDList, 6)
+
+    #return train, test, classifTrain, classifTest
+    print("test\n", test)
+    print("train\n", train)
+    print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
+    print("classifTrain\n", trainClassifs)
+    prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
+    getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction)
+
+
+    #****************4thTest**************
+
+    print("Fourth Test")
+    train, test, trainClassifs, testClassifs = split(percent, inPDList, 6, True)
+
+    #return train, test, classifTrain, classifTest
+    print("test\n", test)
+    print("train\n", train)
+    print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
+    print("classifTrain\n", trainClassifs)
+    prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
+    getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction)
 if __name__ == "__main__":
     main()
 
