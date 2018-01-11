@@ -16,11 +16,24 @@ class PDWrapper:
     columnHead = None
     pair = -1
 
+#********************************************************************************
+def checkHeaders(listOfBetas):
+    exemplar = listOfBetas[0].columnHead
+    allSorted = True
+    for x,pd in enumerate(listOfBetas):
+        thisSorted,intersect = isSortedFiles(pd.columnHead, exemplar,"SampleHeader" + str(x))
+        
+        exemplar = intersect
+        if thisSorted == False:
+             allSorted = False
+
+    return allSorted, exemplar
 
 #********************************************************************************
 def isSortedFiles(listOneUIDs, listTwoUIDs, name):
     if listOneUIDs[1:].equals(listTwoUIDs[1:]):
         print(name, "is ordered identically")
+        return True, listOneUIDs
 
     else:
         for listOneI, listTwoI in zip(listOneUIDs,listTwoUIDs):
@@ -28,32 +41,58 @@ def isSortedFiles(listOneUIDs, listTwoUIDs, name):
             print("listTwoUIDs:", listTwoI)
             if listOneI != listTwoI:
                 print("something stinks")
+            
+        if "SampleHeader" in name:
+            intersect = getIntersect(listOneUIDs, listTwoUIDs)
+            #intersect = list(intersect)
+            return False, intersect
 
-
-        print("ERROR:", name, "is not ordered correctly for program to run")
-        print("please sort both, ending script now")
-        sys.exit()
-
+        if "SampleHeader" not in name:
+            print("ERROR:", name, "is not ordered correctly for program to run")
+            print("please sort both, ending script now")
+            sys.exit()
+        
 
 #********************************************************************************
-def checkHeaders(listOfBetas):
-    exemplar = listOfBetas[0].columnHead
-    for x,pd in enumerate(listOfBetas):
-        isSortedFiles(pd.columnHead, exemplar,"SampleHeader" + str(x))
-        
+def getIntersect(listOneHeaders, listTwoHeaders):
+    listOneHeaders = listOneHeaders.tolist()
+    listTwoHeaders = listTwoHeaders.tolist()
+
+    setOne = set(listOneHeaders)
+    setTwo = set(listTwoHeaders)
+
+    intersect = setOne.intersection(setTwo)
+    
+    print("setOne: ", '\n'.join(setOne.difference(setTwo)))
+    print("setTwo: ", '\n'.join(setTwo.difference(setOne)))
+   
+    print("intersect: ", len(intersect))
+    intersectDF =  pd.Series(list(intersect))
+    return intersectDF
+#********************************************************************************
+def filterBetaData(ListOfPDWrapper, intersect):
+    for x,obj in enumerate(ListOfPDWrapper):
+        obj.betaData = obj.betaData.filter(items=(intersect.tolist()))
+        print("processed Sample" + str(x) + " :" + str(len(obj.betaData.columns)))
+        print(obj.betaData.columns)  
+      ######################################LAST THING  
+
+
 #********************************************************************************
 def makePD(name, needColumns=False):
     infile = open(name, 'r')
     
     data = pd.read_csv(infile, sep = '\t')
-    columns = data.columns
-    columns = columns[1:]
+    columnsHead = data.columns
+    columnsHead = columnsHead[1:]
 
     infile.close()
     
     if needColumns:
-        return data, columns
+        return data, columnsHead
     else:
+        print(columnsHead)
+        data.rename(columns={columnsHead[0]: "CellTypes"}, inplace=True)
         return data
 
 #********************************************************************************
@@ -202,6 +241,7 @@ def main():
             newInput.typeOf = makePD(sampleLine[1])
             print("BetaValues Sample" +str(x) + "\n", newInput.betaData)
             
+            print("ColValues Sample" +str(x) + "\n", newInput.columnHead)
             print("CellType Sample" +str(x) + "\n", newInput.typeOf)
             newInput.pair = x
             
@@ -217,7 +257,12 @@ def main():
         
     
     
-    checkHeaders(inPDList)
+    isSorted,intersect = checkHeaders(inPDList)
+    
+    if not isSorted:
+        filterBetaData(inPDList,intersect)
+    
+    
     
     #****************1stTest**************
 
@@ -271,6 +316,8 @@ def main():
     print("classifTrain\n", trainClassifs)
     prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
     getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction)
+    
+
 if __name__ == "__main__":
     main()
 

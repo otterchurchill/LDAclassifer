@@ -6,7 +6,7 @@
 
 suppressMessages(library("minfi"))
 suppressMessages(library("minfiData"))
-suppressMessages(library("IlluminaHumanMethylationEPICmanifest"))
+suppressMessages(library("IlluminaHumanMethylation450kmanifest"))
 
 args <- commandArgs(trailingOnly=TRUE)
 manifest <- args[1]
@@ -26,7 +26,7 @@ fourFiftyKRgset <- RGChannelSet()
 
 #Creating seperate arrays for Epic and 450k, require experiment_accession_Grn.idat and
 #experiment_acc.Red.idat
-fourFiftyKRgset <- read.metharray(fourFiftyKTargets$Basename, verbose = TRUE, force = TRUE)
+fourFiftyKRgset <- read.metharray(fourFiftyKTargets$Basename, verbose = TRUE)
 
 
 
