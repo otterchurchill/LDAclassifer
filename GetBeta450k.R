@@ -16,7 +16,7 @@ print(manifest)
 
 
 #Get Experiment accession 
-fourFiftyKTargets <- read.csv(manifest, header=TRUE, sep=",")
+fourFiftyKTargets <- read.csv(manifest, header=TRUE, sep="\t")
 
 print(fourFiftyKTargets)
 

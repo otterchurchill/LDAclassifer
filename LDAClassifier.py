@@ -3,6 +3,7 @@
 import sys
 import pandas as pd
 import matplotlib.patches as mpatches
+import gc
 
 import numpy as np
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
@@ -36,12 +37,12 @@ def isSortedFiles(listOneUIDs, listTwoUIDs, name):
         return True, listOneUIDs
 
     else:
-        for listOneI, listTwoI in zip(listOneUIDs,listTwoUIDs):
+        '''for listOneI, listTwoI in zip(listOneUIDs,listTwoUIDs):
             print("listOneUIDs:", listOneI)
             print("listTwoUIDs:", listTwoI)
             if listOneI != listTwoI:
                 print("something stinks")
-            
+        '''
         if "SampleHeader" in name:
             intersect = getIntersect(listOneUIDs, listTwoUIDs)
             #intersect = list(intersect)
@@ -75,7 +76,6 @@ def filterBetaData(ListOfPDWrapper, intersect):
         obj.betaData = obj.betaData.filter(items=(intersect.tolist()))
         print("processed Sample" + str(x) + " :" + str(len(obj.betaData.columns)))
         print(obj.betaData.columns)  
-      ######################################LAST THING  
 
 
 #********************************************************************************
@@ -175,17 +175,34 @@ def predict(train, test , trainClassifs, varibles):
     return YClasifs
 
 #********************************************************************************
-def randomize(train, test, trainClassifs, testClassifs, state):
-    
-    concat = pd.concat([train, trainClassifs], axis=1)
-    print("randomize:\n", concat)
-    concatRand = concat.sample(frac=1, random_state=state)
-    concatRand.reset_index(drop =True)
-    return concatRand
-
+def randomize(sampleSetList, state):
+    for x,sampleSet in enumerate(sampleSetList):
+        print("****************Randomize**************") 
+        #concat = pd.concat([sampleSet.typeOf, sampleSet.betaData], axis=1)
+        #print("randomize:\n", concat)
+        gc.collect()
+        rand = sampleSet.betaData.sample(frac=1, random_state=state)
+        gc.collect()
+        print("randWithindex",rand)
+        neededOrder=list(rand.index)
+        rand.reset_index(drop = True, inplace = True)
+        gc.collect()
+        print("rand", rand) 
+        sampleSet.betaData = pd.DataFrame(rand)
+        
+        gc.collect()
+        
+        sampleSet.typeOf = pd.DataFrame(sampleSet.typeOf.reindex(neededOrder))
+        print("TypeOf.index", sampleSet.typeOf)
+        
+        sampleSet.typeOf.reset_index(drop = True, inplace = True)
+        
+        print("betaData :", sampleSet.betaData)
+        print("typeOf :", sampleSet.typeOf)
+        gc.collect()
 
 #********************************************************************************
-def getAccuracy(testClassifs, prediction):
+def getAccuracy(testClassifs, prediction, outfile):
     print (prediction,'\n', sep='')
     print(testClassifs,'\n', sep='')
     
@@ -199,6 +216,9 @@ def getAccuracy(testClassifs, prediction):
     correctPredictions = (correctPredictionsSummed / len(testClassifs))
     print("#OfCorrectPredictions:", correctPredictionsSummed, "#ofPredictions:",len(testClassifs))
     print( "Accuracy:", correctPredictions)
+    print("#OfCorrectPredictions:", correctPredictionsSummed, "#ofPredictions:",len(testClassifs),
+    file=outfile)
+    print( "Accuracy:", correctPredictions, file=outfile)
         
 #********************************************************************************
 def scalings(lda, X, varibles, out=False):
@@ -262,11 +282,13 @@ def main():
     if not isSorted:
         filterBetaData(inPDList,intersect)
     
+    outfile =  open('LDA_Results.txt', 'w+')
     
-    
+     
     #****************1stTest**************
 
     print("First Test")
+    print("First Test", file=outfile)
     train, test, trainClassifs, testClassifs = split(percent, inPDList, 4)
 
     #return train, test, classifTrain, classifTest
@@ -275,24 +297,29 @@ def main():
     print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
     print("classifTrain\n", trainClassifs)
     prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
-    getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction)
-
+    getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
+    
 
     #****************2stTest**************
-
     print("Second Test")
-    train, test, trainClassifs, testClassifs = split(percent, inPDList, 4, True)
-
-    #return train, test, classifTrain, classifTest
-    print("test\n", test)
-    print("train\n", train)
-    print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
-    print("classifTrain\n", trainClassifs)
-    prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
-    getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction)
+    print("Second Test", file=outfile)
+    for i in range (0,10):
+        randomize(inPDList, i)
+        train, test, trainClassifs, testClassifs = split(percent, inPDList, 4, True)
+            
+        #return train, test, classifTrain, classifTest
+        print("test\n", test)
+        print("train\n", train)
+        print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
+        print("classifTrain\n", trainClassifs)
+        prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
+        getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
+    
+    
     #****************3rdTest**************
 
     print("Third Test")
+    print("third test", file=outfile)
     train, test, trainClassifs, testClassifs = split(percent, inPDList, 6)
 
     #return train, test, classifTrain, classifTest
@@ -301,22 +328,25 @@ def main():
     print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
     print("classifTrain\n", trainClassifs)
     prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
-    getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction)
+    getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
 
 
     #****************4thTest**************
 
     print("Fourth Test")
-    train, test, trainClassifs, testClassifs = split(percent, inPDList, 6, True)
+    print("Fourth Test", file=outfile)
+    for i in range (0,10):
+        randomize(inPDList, i)
+        train, test, trainClassifs, testClassifs = split(percent, inPDList, 6, True)
 
-    #return train, test, classifTrain, classifTest
-    print("test\n", test)
-    print("train\n", train)
-    print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
-    print("classifTrain\n", trainClassifs)
-    prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
-    getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction)
-    
+        #return train, test, classifTrain, classifTest
+        print("test\n", test)
+        print("train\n", train)
+        print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
+        print("classifTrain\n", trainClassifs)
+        prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
+        getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
+        
 
 if __name__ == "__main__":
     main()
