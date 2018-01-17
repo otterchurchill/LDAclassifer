@@ -11,10 +11,20 @@ from scipy import stats
 from sklearn.utils import shuffle
 
 #********************************************************************************
+def checkArgs(argv):
+    if len(argv) != 3 :
+        print("toRun: python3.5 path/LDAClassifier.py <Manifest.txt> <ratioToSplit>")
+        sys.exit()
+    if float(argv[2]) < 0 or float(argv[2]) > 1:
+        print("Please give a valid split decimal number between 0 and 1") 
+        sys.exit()
+
+#********************************************************************************
 class PDWrapper:
     betaData = None
     typeOf = None
     columnHead = None
+    useAsList = []
     pair = -1
 
 #********************************************************************************
@@ -96,50 +106,79 @@ def makePD(name, needColumns=False):
         return data
 
 #********************************************************************************
+def getOrder(OrderOfUse,sampleSetName):
+    numOfTests = 5
+    checkOrder = OrderOfUse.strip('[]').split(',')
+    print("checkOrder:", checkOrder)
+    if len(checkOrder) < numOfTests:
+        print("ERROR:", sampleSetName, "does not have a valid useAsList")
+        print("Please remember it has to have " + str(numOfTests) + " to work")
+        sys.exit()
+    acceptable = {"NA", "TR", "TE", "TR-TE-SP", "TR-SP"}
+    
+    if not acceptable.issuperset(set(checkOrder)):
+        print("ERROR:", sampleSetName, "does not have a valid useAsList ")
+        print("please remember it can only contain the strings ['NA', 'TR', 'TE', 'TR-TE-SP', 'TR-SP'] to work")
+        sys.exit()
+    
+    return checkOrder
+
+#********************************************************************************
 def isPD(objectToCheck, name):
     if type(objectToCheck) != "pandas.core.frame.DataFrame":
         print("False",name, "is a", type(objectToCheck))
     
 #********************************************************************************
-def split(precentNeeded,sampleList,lenght, lastTwoSplit=False):
+def split(precentNeeded,sampleSetList,numOfTests, outfile):
     test = pd.DataFrame()
     train = pd.DataFrame()
     classifTest = pd.DataFrame()
     classifTrain = pd.DataFrame()
    
-    for x,sample in enumerate(sampleList):
-        if x < (lenght-2):
-            train = train.append(sample.betaData)
-            classifTrain = classifTrain.append(sample.typeOf)
+    for x,sampleSet in enumerate(sampleSetList):
+        if sampleSet.useAsList[numOfTests] == "NA":
+            continue
+        elif sampleSet.useAsList[numOfTests] == "TR":
+            train = train.append(sampleSet.betaData)
+            classifTrain = classifTrain.append(sampleSet.typeOf)
             print("classifTrain\n", classifTrain)
+            print("#OfSamplesFor train sampleSet" + str(x) + ':' + str(len(sampleSet.betaData.index)) + 
+            " First element: " + str(sampleSet.typeOf.iloc[0,0]), file=outfile) 
+        
+        elif sampleSet.useAsList[numOfTests] == "TE":
+            test = test.append(sampleSet.betaData)
+            classifTest = classifTest.append(sampleSet.typeOf)
+            print("#OfSamplesFor test sampleSet" + str(x) + ':' + str(len(sampleSet.betaData.index)) + 
+            " First element: " + str(sampleSet.typeOf.iloc[0,0]), file=outfile) 
+        
+        ### Split 
+        elif (sampleSet.useAsList[numOfTests] == "TR-TE-SP") or (sampleSet.useAsList[numOfTests] == "TR-SP"):
 
-        elif (x >= lenght):
-            break
-        elif ((x >= (lenght-2)) and not lastTwoSplit):
-            test = test.append(sample.betaData)
-            classifTest = classifTest.append(sample.typeOf)
-        elif ((x >= (lenght-2)) and lastTwoSplit) :
-
-            trainNum, testNum = getTrainTest(precentNeeded, len(sample.betaData.index))
+            trainNum, testNum = getTrainTest(precentNeeded, len(sampleSet.betaData.index))
 
             print("trainSample"+ str(x), trainNum, "testSample"+ str(x), testNum)  
-             
-    
-            sampleTrain = sample.betaData.loc[ : trainNum - 1, :]
-            sampleTest = sample.betaData.loc[trainNum :, : ]
-
-            test = test.append(sampleTest)
+            #Get betaData train and test          
+            sampleTrain = sampleSet.betaData.loc[ : trainNum - 1, :]
+            sampleTest = sampleSet.betaData.loc[trainNum :, : ]
+            #Get classif data train and test
+            cellTrain = sampleSet.typeOf.loc[ : trainNum - 1]
+            cellTest = sampleSet.typeOf.loc[ trainNum : ]
+            #add the created Training set of beta data and classifs to all training sets
             train = train.append(sampleTrain)
-
-            cellTrain = sample.typeOf.loc[ : trainNum - 1]
-            cellTest = sample.typeOf.loc[ trainNum : ]
-    
-    
             classifTrain = classifTrain.append(cellTrain)
-            classifTest = classifTest.append(cellTest)
+            print("#OfSamplesFor train sampleSet" + str(x) + ':' + str(len(cellTrain.index)) + 
+            " First element: " + str(cellTrain.iloc[0,0]), file=outfile) 
+
+            
+            #If its a Train-Test Split will append to test also
+            if sampleSet.useAsList[numOfTests] == "TR-TE-SP": 
+                test = test.append(sampleTest)
+                classifTest = classifTest.append(cellTest)
+                print("#OfSamplesFor test sampleSet" + str(x) + ':' + str(len(classifTest.index)) + 
+                " First element: " + str(cellTest.iloc[0,0]), file=outfile) 
     
+            
             print("cellTest:\n", cellTest)
-    
     
 
     return train, test, classifTrain, classifTest
@@ -178,8 +217,7 @@ def predict(train, test , trainClassifs, varibles):
 def randomize(sampleSetList, state):
     for x,sampleSet in enumerate(sampleSetList):
         print("****************Randomize**************") 
-        #concat = pd.concat([sampleSet.typeOf, sampleSet.betaData], axis=1)
-        #print("randomize:\n", concat)
+        
         gc.collect()
         rand = sampleSet.betaData.sample(frac=1, random_state=state)
         gc.collect()
@@ -238,7 +276,7 @@ def scalings(lda, X, varibles, out=False):
 #********************************************************************************
 
 def main():
-    
+    checkArgs(sys.argv)    
     fileListFile = sys.argv[1]
     percent = sys.argv[2]
     
@@ -254,18 +292,18 @@ def main():
             sampleLine = sampleLine.split()
             
             newInput = PDWrapper()
-            newInputManifest = PDWrapper()
             
-            newInput.betaData, newInput.columnHead = makePD(sampleLine[0], True)
-            
+            newInput.betaData, newInput.columnHead = makePD(sampleLine[0], True) 
             newInput.typeOf = makePD(sampleLine[1])
+            
+            newInput.useAsList = getOrder(sampleLine[2], "sampleset" + str(x)) 
+
             print("BetaValues Sample" +str(x) + "\n", newInput.betaData)
             
             print("ColValues Sample" +str(x) + "\n", newInput.columnHead)
             print("CellType Sample" +str(x) + "\n", newInput.typeOf)
             newInput.pair = x
             
-            inPDList.append(newInput)
             #check that the patients are in the same order
             xUID = newInput.betaData.iloc[:, 0]
             yUID = newInput.typeOf.iloc[:, 0]
@@ -274,6 +312,9 @@ def main():
             #reduce DTs to relevant information
             newInput.betaData = newInput.betaData.iloc[:, 1:]
             newInput.typeOf = newInput.typeOf.iloc[:, 1:]
+            
+            
+            inPDList.append(newInput)
         
     
     
@@ -289,7 +330,7 @@ def main():
 
     print("First Test")
     print("First Test", file=outfile)
-    train, test, trainClassifs, testClassifs = split(percent, inPDList, 4)
+    train, test, trainClassifs, testClassifs = split(percent, inPDList, 0, outfile)
 
     #return train, test, classifTrain, classifTest
     print("test\n", test)
@@ -305,7 +346,7 @@ def main():
     print("Second Test", file=outfile)
     for i in range (0,10):
         randomize(inPDList, i)
-        train, test, trainClassifs, testClassifs = split(percent, inPDList, 4, True)
+        train, test, trainClassifs, testClassifs = split(percent, inPDList, 1, outfile)
             
         #return train, test, classifTrain, classifTest
         print("test\n", test)
@@ -315,12 +356,11 @@ def main():
         prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
         getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
     
-    
     #****************3rdTest**************
 
     print("Third Test")
     print("third test", file=outfile)
-    train, test, trainClassifs, testClassifs = split(percent, inPDList, 6)
+    train, test, trainClassifs, testClassifs = split(percent, inPDList, 2, outfile)
 
     #return train, test, classifTrain, classifTest
     print("test\n", test)
@@ -337,7 +377,7 @@ def main():
     print("Fourth Test", file=outfile)
     for i in range (0,10):
         randomize(inPDList, i)
-        train, test, trainClassifs, testClassifs = split(percent, inPDList, 6, True)
+        train, test, trainClassifs, testClassifs = split(percent, inPDList, 3, outfile)
 
         #return train, test, classifTrain, classifTest
         print("test\n", test)
@@ -346,7 +386,24 @@ def main():
         print("classifTrain\n", trainClassifs)
         prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
         getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
+     
+    #****************5thTest**************
+
+    print("Fifth Test")
+    print("Fifth Test", file=outfile)
+    for i in range (0,10):
         
+        randomize(inPDList, i)
+        train, test, trainClassifs, testClassifs = split(percent, inPDList, 4, outfile)
+
+        print("test\n", test)
+        print("train\n", train)
+        print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
+        print("classifTrain\n", trainClassifs)
+        prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
+        getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
+     
+
 
 if __name__ == "__main__":
     main()
