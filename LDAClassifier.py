@@ -15,9 +15,12 @@ def checkArgs(argv):
     if len(argv) != 3 :
         print("toRun: python3.5 path/LDAClassifier.py <Manifest.txt> <ratioToSplit>")
         sys.exit()
-    if float(argv[2]) < 0 or float(argv[2]) > 1:
-        print("Please give a valid split decimal number between 0 and 1") 
-        sys.exit()
+    try:
+        if float(argv[2]) < 0 or float(argv[2]) > 1:
+            print("Please give a valid split decimal number between 0 and 1") 
+            sys.exit()
+    except:
+        print("Second argument is not a float!")
 
 #********************************************************************************
 class PDWrapper:
@@ -25,6 +28,7 @@ class PDWrapper:
     typeOf = None
     columnHead = None
     useAsList = []
+    specificTrainRatioList = []
     pair = -1
 
 #********************************************************************************
@@ -106,9 +110,10 @@ def makePD(name, needColumns=False):
         return data
 
 #********************************************************************************
-def getOrder(OrderOfUse,sampleSetName):
+def getOrder(orderOfUse, OrderOfSpecificTrainRatio , sampleSetName):
     numOfTests = 5
-    checkOrder = OrderOfUse.strip('[]').split(',')
+    checkOrder = orderOfUse.strip('[]').split(',')
+    
     print("checkOrder:", checkOrder)
     if len(checkOrder) < numOfTests:
         print("ERROR:", sampleSetName, "does not have a valid useAsList")
@@ -121,7 +126,28 @@ def getOrder(OrderOfUse,sampleSetName):
         print("please remember it can only contain the strings ['NA', 'TR', 'TE', 'TR-TE-SP', 'TR-SP'] to work")
         sys.exit()
     
-    return checkOrder
+    try:
+        checkOrderSpecificRatio = [float(i) for i in OrderOfSpecificTrainRatio.strip('[]').split(',')]
+        
+    
+    except:
+        print("ERROR:", sampleSetName, "does not have a valid specificTrainRatioList")
+        print("please remember it can only contain the strings ['nan',decimal between 1 and 0 such as '.5'] to work")
+        sys.exit()
+
+    for i in checkOrderSpecificRatio:
+        if i < 0 or i > 1:
+            raise ValueError("Need specificTrainRatioList to have values between 1 and 0 such as '.5'")
+
+    print("checkOrderSpecificRatio:", checkOrderSpecificRatio)
+    if len(checkOrderSpecificRatio) < numOfTests:
+        print("ERROR:", sampleSetName, "does not have a valid specificTrainRatioList")
+        print("Please remember it has to have " + str(numOfTests) + " to work")
+        sys.exit()
+    
+
+
+    return checkOrder, checkOrderSpecificRatio
 
 #********************************************************************************
 def isPD(objectToCheck, name):
@@ -174,7 +200,7 @@ def split(precentNeeded,sampleSetList,numOfTests, outfile):
             if sampleSet.useAsList[numOfTests] == "TR-TE-SP": 
                 test = test.append(sampleTest)
                 classifTest = classifTest.append(cellTest)
-                print("#OfSamplesFor test sampleSet" + str(x) + ':' + str(len(classifTest.index)) + 
+                print("#OfSamplesFor test sampleSet" + str(x) + ':' + str(len(cellTest.index)) + 
                 " First element: " + str(cellTest.iloc[0,0]), file=outfile) 
     
             
@@ -256,7 +282,7 @@ def getAccuracy(testClassifs, prediction, outfile):
     print( "Accuracy:", correctPredictions)
     print("#OfCorrectPredictions:", correctPredictionsSummed, "#ofPredictions:",len(testClassifs),
     file=outfile)
-    print( "Accuracy:", correctPredictions, file=outfile)
+    print( "Accuracy:", correctPredictions,'\n', file=outfile)
         
 #********************************************************************************
 def scalings(lda, X, varibles, out=False):
@@ -296,7 +322,8 @@ def main():
             newInput.betaData, newInput.columnHead = makePD(sampleLine[0], True) 
             newInput.typeOf = makePD(sampleLine[1])
             
-            newInput.useAsList = getOrder(sampleLine[2], "sampleset" + str(x)) 
+            newInput.useAsList, newInput.specificTrainRatioList = getOrder(sampleLine[2],
+            sampleLine[3], "sampleset" + str(x)) 
 
             print("BetaValues Sample" +str(x) + "\n", newInput.betaData)
             
