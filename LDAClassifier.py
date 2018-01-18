@@ -1,4 +1,4 @@
-# To run python3.5 TypeAData.txt TypeACellCalasification.txt TypeBData TypeBClassif (.#)precentsplit outname> StepInfo
+# To run python3.5 FileManifest (.#)precentsplit numTests numNonRand numRand > StepInfo
 
 import sys
 import pandas as pd
@@ -12,8 +12,9 @@ from sklearn.utils import shuffle
 
 #********************************************************************************
 def checkArgs(argv):
-    if len(argv) != 3 :
-        print("toRun: python3.5 path/LDAClassifier.py <Manifest.txt> <ratioToSplit>")
+    if len(argv) != 6 :
+        print("toRun: python3.5 path/LDAClassifier.py <Manifest.txt> <ratioToSplit> <NumberOfTests>"
+        + "<numNonRand> <numRand>")
         sys.exit()
     try:
         if float(argv[2]) < 0 or float(argv[2]) > 1:
@@ -21,6 +22,10 @@ def checkArgs(argv):
             sys.exit()
     except:
         print("Second argument is not a float!")
+
+    if (int(argv[4]) + int(argv[5])) != int(argv[3]):
+        print("The number of non-randomized test plus randomized tests should equal the number of"
+        + "tests, so the argument 3 should equal to the sum of argument 4 and 5")
 
 #********************************************************************************
 class PDWrapper:
@@ -110,8 +115,7 @@ def makePD(name, needColumns=False):
         return data
 
 #********************************************************************************
-def getOrder(orderOfUse, OrderOfSpecificTrainRatio , sampleSetName):
-    numOfTests = 5
+def getOrder(orderOfUse, OrderOfSpecificTrainRatio , sampleSetName, numOfTests):
     checkOrder = orderOfUse.strip('[]').split(',')
     
     print("checkOrder:", checkOrder)
@@ -305,10 +309,13 @@ def main():
     checkArgs(sys.argv)    
     fileListFile = sys.argv[1]
     percent = sys.argv[2]
-    
+    numOfTests = int(sys.argv[3])
+    numOfNonRandTests = int(sys.argv[4])
+    numOfRandTests = int(sys.argv[5])
+
     percent = float(percent)
     print("Split Ratio is", percent)
-    
+     
     inPDList = []
 
     with open (fileListFile, 'r') as inFiles:
@@ -323,7 +330,7 @@ def main():
             newInput.typeOf = makePD(sampleLine[1])
             
             newInput.useAsList, newInput.specificTrainRatioList = getOrder(sampleLine[2],
-            sampleLine[3], "sampleset" + str(x)) 
+            sampleLine[3], "sampleset" + str(x), numOfTests) 
 
             print("BetaValues Sample" +str(x) + "\n", newInput.betaData)
             
@@ -352,84 +359,39 @@ def main():
     
     outfile =  open('LDA_Results.txt', 'w+')
     
-     
-    #****************1stTest**************
+    for testTrialNum in range(0,numOfTests): 
+        #****************Non-Randomized Trial**************
+        if testTrialNum < numOfNonRandTests: 
+            print("TEST #"+ str(testTrialNum))
 
-    print("First Test")
-    print("First Test", file=outfile)
-    train, test, trainClassifs, testClassifs = split(percent, inPDList, 0, outfile)
+            print("TEST #"+ str(testTrialNum), file=outfile)
+            train, test, trainClassifs, testClassifs = split(percent, inPDList, testTrialNum, outfile)
 
-    #return train, test, classifTrain, classifTest
-    print("test\n", test)
-    print("train\n", train)
-    print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
-    print("classifTrain\n", trainClassifs)
-    prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
-    getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
-    
-
-    #****************2stTest**************
-    print("Second Test")
-    print("Second Test", file=outfile)
-    for i in range (0,10):
-        randomize(inPDList, i)
-        train, test, trainClassifs, testClassifs = split(percent, inPDList, 1, outfile)
+            #return train, test, classifTrain, classifTest
+            print("test\n", test)
+            print("train\n", train)
+            print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
+            print("classifTrain\n", trainClassifs)
+            prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
+            getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
             
-        #return train, test, classifTrain, classifTest
-        print("test\n", test)
-        print("train\n", train)
-        print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
-        print("classifTrain\n", trainClassifs)
-        prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
-        getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
-    
-    #****************3rdTest**************
 
-    print("Third Test")
-    print("third test", file=outfile)
-    train, test, trainClassifs, testClassifs = split(percent, inPDList, 2, outfile)
+        if testTrialNum >= numOfNonRandTests:
+            #****************Randomized Trail**************
+            print("TEST #"+ str(testTrialNum))
+            print("TEST #" + str(testTrialNum), file=outfile)
 
-    #return train, test, classifTrain, classifTest
-    print("test\n", test)
-    print("train\n", train)
-    print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
-    print("classifTrain\n", trainClassifs)
-    prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
-    getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
-
-
-    #****************4thTest**************
-
-    print("Fourth Test")
-    print("Fourth Test", file=outfile)
-    for i in range (0,10):
-        randomize(inPDList, i)
-        train, test, trainClassifs, testClassifs = split(percent, inPDList, 3, outfile)
-
-        #return train, test, classifTrain, classifTest
-        print("test\n", test)
-        print("train\n", train)
-        print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
-        print("classifTrain\n", trainClassifs)
-        prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
-        getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
-     
-    #****************5thTest**************
-
-    print("Fifth Test")
-    print("Fifth Test", file=outfile)
-    for i in range (0,10):
-        
-        randomize(inPDList, i)
-        train, test, trainClassifs, testClassifs = split(percent, inPDList, 4, outfile)
-
-        print("test\n", test)
-        print("train\n", train)
-        print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
-        print("classifTrain\n", trainClassifs)
-        prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
-        getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
-     
+            for i in range (0,10):
+                randomize(inPDList, i)
+                train, test, trainClassifs, testClassifs = split(percent, inPDList, testTrialNum, outfile)
+                    
+                #return train, test, classifTrain, classifTest
+                print("test\n", test)
+                print("train\n", train)
+                print("classifTest\n", testClassifs.iloc[:,0 ].tolist())
+                print("classifTrain\n", trainClassifs)
+                prediction = predict(train, test, trainClassifs, inPDList[0].columnHead)
+                getAccuracy(testClassifs.iloc[:, 0 ].tolist(), prediction, outfile)
 
 
 if __name__ == "__main__":
