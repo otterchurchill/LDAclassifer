@@ -1,20 +1,25 @@
 import sys
 import sh
 
-#Please replace the absolute path of the UsedToPredictClassif files, the first argument of Rcmd()
-#and pythonCmd
 
 def main():
+    progPath = sys.argv[0]
     whichPart = sys.argv[1]
     fil0 = sys.argv[2]
+    progPath= '/'.join(progPath.split('/')[:-1]) + '/'
+    print("progPath\t" + progPath)
     
 
     lines = []
     
     Rcmd = sh.Command("/usr/bin/Rscript")
     pythonCmd = sh.Command("/usr/local/bin/python3.5")
-    currentPath = str(sh.pwd()).rstrip() + '/'
+    startPath = str(sh.pwd()).rstrip() + '/'
+    startPath= '/'.join(startPath.split('/')[:-1]) + '/'
+    print("startPath\t" + startPath)
 
+    
+    pythonAndRPath = startPath + progPath
 
     outfile = open('PyManifest.txt', 'w+')
     if (whichPart == 'R') or (whichPart == "Both"):
@@ -31,14 +36,15 @@ def main():
                 sh.cd(path)
                 
                 if line[2] == "450k":
-                    Rcmd("LDAcl/GetBeta450k.R", line[0], line[1])
+                    Rcmd(pythonAndRPath + "GetBeta450k.R", line[0], line[1])
         
                 if line[2] == "Epic":
-                    Rcmd("~/MethyWork/UsedToPredictClassif/EpicToBeta450k.R", line[0], line[1])
+                    Rcmd(pythonAndRPath + "EpicToBeta450k.R", line[0], line[1])
 
                 
-                print(path + line[1] + "OutputBetaNoXY.txt" + '\t' + line[0], file=outfile)
-            
+                print(path + line[1] + "OutputBetaNoXYTran.txt", line[0], line[2], line[3], file=outfile)
+                
+                sh.cd(startPath) 
     '''
     checkerfile = open('LDACheckerResults', 'w+')
     if (whichPart == "python") or (whichPart == "Both"):
