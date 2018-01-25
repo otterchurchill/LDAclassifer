@@ -136,11 +136,13 @@ def getOrder(orderOfUse, OrderOfSpecificTrainRatio , sampleSetName, numOfTests):
     
     except:
         print("ERROR:", sampleSetName, "does not have a valid specificTrainRatioList")
-        print("please remember it can only contain the strings ['nan',decimal between 1 and 0 such as '.5'] to work")
+        print("please remember it can only contain the strings ['inf',decimal between 1 and 0 such as '.5'] to work")
         sys.exit()
-
+    
+    print ("checkOrderSpecificRatio:", checkOrderSpecificRatio) 
+    
     for i in checkOrderSpecificRatio:
-        if i < 0 or i > 1:
+        if not ((i > 0 and i < 1) or ( i == float("inf"))) :
             raise ValueError("Need specificTrainRatioList to have values between 1 and 0 such as '.5'")
 
     print("checkOrderSpecificRatio:", checkOrderSpecificRatio)
@@ -183,8 +185,11 @@ def split(precentNeeded,sampleSetList,numOfTests, outfile):
         
         ### Split 
         elif (sampleSet.useAsList[numOfTests] == "TR-TE-SP") or (sampleSet.useAsList[numOfTests] == "TR-SP"):
-
-            trainNum, testNum = getTrainTest(precentNeeded, len(sampleSet.betaData.index))
+            if sampleSet.specificTrainRatioList[numOfTests] == float("inf"):
+                trainNum, testNum = getTrainTest(sampleSet.specificTrainRatioList[numOfTests], len(sampleSet.betaData.index))
+            else:
+                trainNum, testNum = getTrainTest(precentNeeded, len(sampleSet.betaData.index))
+                
 
             print("trainSample"+ str(x), trainNum, "testSample"+ str(x), testNum)  
             #Get betaData train and test          
