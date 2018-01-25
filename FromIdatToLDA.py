@@ -21,8 +21,8 @@ def main():
     
     pythonAndRPath = startPath + progPath
 
-    outfile = open('PyManifest.txt', 'w+')
     if (whichPart == 'R') or (whichPart == "Both"):
+        outfile = open('PyManifest.txt', 'w+')
 
         with open (fil0, 'r') as inFil0:
             for line in inFil0:
@@ -42,24 +42,35 @@ def main():
                     Rcmd(pythonAndRPath + "EpicToBeta450k.R", line[0], line[1])
 
                 
-                print(path + line[1] + "OutputBetaNoXYTran.txt", line[0], line[2], line[3], file=outfile)
+                print(path + line[1] + "OutputBetaNoXYTran.txt", line[0], line[3], line[4], file=outfile)
+                
+                sh.sed('-i', '1s/^/"PatientID"\t/', path + line[1] + "OutputBetaNoXYTran.txt")
+                sh.sed('-i', '1s/^/"PatientID"\t/', path + line[1] + "OutputBetaTran.txt") 
                 
                 sh.cd(startPath) 
-    '''
-    checkerfile = open('LDACheckerResults', 'w+')
+
+
+
+
+     
     if (whichPart == "python") or (whichPart == "Both"):
-        sh.cd(currentPath) 
         
-        pythonCmd("../UsedToPredictClassif/LDAClassifier.py",  "PyManifest.txt", .25,
-        _out=checkerfile)
-
-    '''
-            
-
+        if len(sys.argv) != 7 :
+                print("toRun: python3.5 path/FromIdatToLDA.py <WhichPart> <Manifest.txt> <ratioToSplit> <NumberOfTests> "
+                + "<numNonRand> <numRand>")
+                sys.exit()
         
-    
-    
+        sh.cd(startPath) 
+        checkerfile = open('LDACheckerResults', 'w+')
+        
+        if whichPart == "Both":
+            pythonCmd(pythonAndRPath + "LDAClassifier.py",  "PyManifest.txt", sys.argv[3],
+            sys.argv[4], sys.argv[5], sys.argv[6], _out=checkerfile)
 
+
+        if whichPart == "python":
+            pythonCmd(pythonAndRPath + "LDAClassifier.py",  sys.argv[2], sys.argv[3],
+            sys.argv[4], sys.argv[5], sys.argv[6], _out=checkerfile)
 
 if __name__ == "__main__":
     main()

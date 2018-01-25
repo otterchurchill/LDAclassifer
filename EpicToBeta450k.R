@@ -16,7 +16,7 @@ print(manifest)
 
 
 #Get Experiment accession 
-epicTargets <- read.csv(manifest, header=TRUE, sep=",")
+epicTargets <- read.csv(manifest, header=TRUE, sep="\t")
 
 print(epicTargets)
 

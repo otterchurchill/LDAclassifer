@@ -185,7 +185,7 @@ def split(precentNeeded,sampleSetList,numOfTests, outfile):
         
         ### Split 
         elif (sampleSet.useAsList[numOfTests] == "TR-TE-SP") or (sampleSet.useAsList[numOfTests] == "TR-SP"):
-            if sampleSet.specificTrainRatioList[numOfTests] == float("inf"):
+            if sampleSet.specificTrainRatioList[numOfTests] != float("inf"):
                 trainNum, testNum = getTrainTest(sampleSet.specificTrainRatioList[numOfTests], len(sampleSet.betaData.index))
             else:
                 trainNum, testNum = getTrainTest(precentNeeded, len(sampleSet.betaData.index))
